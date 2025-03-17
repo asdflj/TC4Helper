@@ -14,8 +14,12 @@ public class AutoPlayButton extends GuiButton {
     public static void restart() {
         autoPlay.interrupt();
         autoPlay.abort();
-
         autoPlay = new AutoPlay();
+        autoPlay.start();
+    }
+
+    static {
+        autoPlay.start();
     }
 
     public AutoPlayButton(int buttonId, int x, int y, int width, int height) {
@@ -41,7 +45,9 @@ public class AutoPlayButton extends GuiButton {
 
         switch (autoPlay.getStatus()) {
             case Leisure, Done -> {
-                if (note != null) if (autoPlay.set(obj, player, note)) autoPlay.start();
+                if (note != null) {
+                    autoPlay.set(obj, player, note);
+                }
             }
             case Searching -> autoPlay.abort();
             case CanExecute, Execute -> autoPlay.execute();

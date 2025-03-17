@@ -60,9 +60,10 @@ public class AutoPlay extends Thread {
     private List<Edge> result;
 
     public boolean set(GuiResearchTableHelperInterface object, EntityPlayer player, ResearchNoteData note) {
-        if (status != Status.Leisure && status != Status.Done || note == null) {
+        if (getStatus() != Status.Leisure && getStatus() != Status.Done || note == null) {
             return false;
         }
+        setStatus(Status.Searching);
         this.aspectList = Thaumcraft.proxy.getPlayerKnowledge()
             .getAspectsDiscovered(player.getCommandSenderName());
         this.object = object;
@@ -70,34 +71,24 @@ public class AutoPlay extends Thread {
         return true;
     }
 
+    public synchronized void setStatus(Status status) {
+        this.status = status;
+    }
+
     public Status getStatus() {
         return status;
     }
 
-    public static boolean started = false;
-
-    @Override
-    public synchronized void start() {
-        status = Status.Searching;
-        if (!started) {
-            started = true;
-            super.start();
-        }
-    }
-
     @Override
     public void run() {
-        while (true) {
-            if (!this.isAlive() || this.isInterrupted()) break;
-            if (status == Status.Searching) search();
+        while (this.isAlive() && !this.isInterrupted()) {
+            if (getStatus() == Status.Searching) search();
             System.gc();
-
             Thread.yield();
             try {
                 Thread.sleep(500);
-            } catch (Exception e) {}
+            } catch (Exception ignored) {}
         }
-
     }
 
     public static class Node {
@@ -244,10 +235,10 @@ public class AutoPlay extends Thread {
         }
         // 第二步: 广度优先搜索(要素组成) 得到路线图 在最短可达距离的基础上计算两两节点之间的链接距离
         // 价值计算
-        if (status != Status.Searching) return;
+        if (getStatus() != Status.Searching) return;
         {
             for (Edge edge : edges) {
-                if (status != Status.Searching) return;
+                if (getStatus() != Status.Searching) return;
                 if (edge.distanceNull != edge.pathNode.size() - 2) { // 有特殊节点 比如玩家放置的，或者原始有的
 
                 }
@@ -264,7 +255,7 @@ public class AutoPlay extends Thread {
                 double min = Double.MAX_VALUE;
 
                 while (!queue.isEmpty()) {
-                    if (status != Status.Searching) return;
+                    if (getStatus() != Status.Searching) return;
                     AspectEntry entry = queue.poll();
                     if (entry.aspect == edge.point2.aspect && entry.path.size() >= length) {
                         completes.add(entry);
@@ -288,7 +279,7 @@ public class AutoPlay extends Thread {
             }
         }
         // 第三步: 最小生成树(要素路线图) 得到生成树
-        if (status != Status.Searching) return;
+        if (getStatus() != Status.Searching) return;
         {
             edges.sort(Comparator.comparingDouble(o -> o.value));
 
@@ -299,7 +290,7 @@ public class AutoPlay extends Thread {
             }
 
             for (Edge edge : edges) {
-                if (status != Status.Searching) return;
+                if (getStatus() != Status.Searching) return;
 
                 int group1 = groups.get(edge.point1);
                 int group2 = groups.get(edge.point2);
@@ -351,8 +342,7 @@ public class AutoPlay extends Thread {
             // }
 
         }
-
-        status = Status.Execute;
+        setStatus(Status.Execute);
     }
 
     private double getAspectValue(Aspect aspect) {
@@ -361,7 +351,7 @@ public class AutoPlay extends Thread {
     }
 
     public void execute() {
-        if (status != Status.Execute && status != Status.CanExecute) {
+        if (getStatus() != Status.Execute && getStatus() != Status.CanExecute) {
             return;
         }
 
@@ -376,12 +366,11 @@ public class AutoPlay extends Thread {
                 object.place(node1.hex, aspect);
             }
         });
-
-        status = Status.Done;
+        setStatus(Status.Done);
     }
 
     public void abort() {
-        status = Status.Done;
+        setStatus(Status.Done);
     }
 
 }

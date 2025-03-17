@@ -4,6 +4,8 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,11 +35,12 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
     public ResearchNoteData note;
     @Shadow
     private TileResearchTable tileEntity;
+    private AutoPlayButton btn;
 
     @Override
     public void initGui() {
         super.initGui();
-        this.buttonList.add(new AutoPlayButton(101, width / 2 - 25, 20, 50, 20));
+        this.buttonList.add(this.btn = new AutoPlayButton(101, width / 2 - 25, this.guiTop + 12, 50, 20));
     }
 
     @Override
@@ -45,6 +48,33 @@ public abstract class GuiResearchTableMixin extends GuiContainer implements GuiR
         if (button instanceof AutoPlayButton autoPlayButton) {
             autoPlayButton.onAction(player, note, this);
         }
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        if (this.btn != null) {
+            ItemStack note = this.tileEntity.getStackInSlot(1);
+            ItemStack scribing = this.tileEntity.getStackInSlot(0);
+            this.btn.visible = note != null && scribing != null;
+            this.btn.enabled = calculateBtnState(note, scribing);
+        }
+        super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    private boolean calculateBtnState(ItemStack note, ItemStack scribing) {
+        if (note == null || scribing == null) {
+            return false;
+        }
+        if (scribing.getMaxDamage() == scribing.getItemDamage()) {
+            return false;
+        }
+        NBTTagCompound compound = note.getTagCompound();
+
+        if (compound == null) {
+            note.setTagCompound(compound = new NBTTagCompound());
+        }
+
+        return !compound.getBoolean("complete");
     }
 
     public void place(HexUtils.Hex hex, Aspect aspect) {
